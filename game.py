@@ -62,12 +62,26 @@ class Camera:
                            self.CAM_WIDTH, self.CAM_HEIGHT)
         pygame.draw.rect(self.screen, color, rect)
 
-    def update(self):
+    def update(self, ball):
         self.draw(NO_COLOR)
-        #self.x += self.dx
-        #self.y += self.dy
+
+        # compute input value for the "fancy AI"x
+        value = 0
+        if ball.x <= self.x - self.CAM_WIDTH // 2:
+            value = -256
+        elif ball.x >= self.x + self.CAM_WIDTH // 2:
+            value = 256
+        else:
+            temp = (ball.x - self.x) / (self.CAM_WIDTH // 2)
+            value = int(temp * 256)
+
+        dx = fancy_ai(value)
+        self.x += dx
+
         self.draw(self.COLOR)
 
+def fancy_ai(x):
+    return x // 4
 
 def main():
     pygame.init()
@@ -76,7 +90,6 @@ def main():
     flags = pygame.SRCALPHA | pygame.HWSURFACE
     ball_layer = pygame.surface.Surface((WIDTH, HEIGHT), flags=flags)
     camera_layer = pygame.surface.Surface((WIDTH, HEIGHT), flags=flags)
-    #pygame.draw.rect(screen, FG_COLOR, pygame.Rect((0, 0), (10, 20)))
 
     # prepare game world
     ball = Ball(ball_layer, WIDTH // 2, HEIGHT // 2)
@@ -94,7 +107,7 @@ def main():
         pygame.display.flip()
 
         ball.update()
-        camera.update()
+        camera.update(ball)
 
         pygame.time.wait(30)
 
