@@ -62,26 +62,31 @@ class Camera:
                            self.CAM_WIDTH, self.CAM_HEIGHT)
         pygame.draw.rect(self.screen, color, rect)
 
+    @staticmethod
+    def compute_input_for_ai(ball_x, self_x, length):
+        if ball_x <= self_x - length // 2:
+            return -256
+        elif ball_x >= self_x + length // 2:
+            return 256
+        else:
+            temp = (ball_x - self_x) / (length // 2)
+            return int(temp * 256)
+
     def update(self, ball):
         self.draw(NO_COLOR)
 
-        # compute input value for the "fancy AI"x
-        value = 0
-        if ball.x <= self.x - self.CAM_WIDTH // 2:
-            value = -256
-        elif ball.x >= self.x + self.CAM_WIDTH // 2:
-            value = 256
-        else:
-            temp = (ball.x - self.x) / (self.CAM_WIDTH // 2)
-            value = int(temp * 256)
+        # compute input value for the "fancy AI"
+        value_x = self.compute_input_for_ai(ball.x, self.x, self.CAM_WIDTH)
+        value_y = self.compute_input_for_ai(ball.y, self.y, self.CAM_HEIGHT)
 
-        dx = fancy_ai(value)
+        dx, dy = fancy_ai(value_x, value_y)
         self.x += dx
+        self.y += dy
 
         self.draw(self.COLOR)
 
-def fancy_ai(x):
-    return x // 4
+def fancy_ai(x, y):
+    return x // 4, y // 4
 
 def main():
     pygame.init()
