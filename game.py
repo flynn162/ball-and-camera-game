@@ -1,5 +1,4 @@
 import pygame
-import time
 
 WIDTH, HEIGHT = 1920, 1080
 BG_COLOR = pygame.Color('black')
@@ -41,26 +40,52 @@ class Ball:
         self.y = max(0, min(self.y + dy, HEIGHT))
         self.draw(FG_COLOR)
 
+
+def multiply_into(z, w, out):
+    out[0] = z[0] * w[0] - z[1] * w[1]
+    out[1] = z[0] * w[1] + z[1] * w[0]
+
+def multiply(z, w):
+    result = [0, 0]
+    multiply_into(z, w, result)
+    return result
+
+def square(z):
+    result = [0, 0]
+    multiply_into(z, z, result)
+    return result
+
+
 class Camera:
-    BORDER = 10
     CAM_WIDTH = 640
     CAM_HEIGHT = 360
     COLOR = pygame.Color(100, 100, 100)
     NO_COLOR = pygame.Color(0, 0, 0, 0)
 
+    I = [0, 1]
+    ROT_CCW = square([16, 1])
+    ROT_CW = square([16, -1])
+    MAG_SQUARED = 16*16 + 1*1
+    VECTOR_LENGTH = 250
+
     def __init__(self, screen, x, y):
         self.x = x
         self.y = y
+        self.dx = 0
+        self.dy = 0
         self.screen = screen
-        self.dx = 10
-        self.dy = 10
+
+        self.temp = [0, 0]
+        self.vec1 = [0, self.VECTOR_LENGTH]
+        self.vec2 = multiply(self.vec1, self.I)
 
     def draw(self, color):
-        dx = self.CAM_WIDTH // 2
-        dy = self.CAM_HEIGHT // 2
-        rect = pygame.Rect(self.x - dx, self.y - dy,
-                           self.CAM_WIDTH, self.CAM_HEIGHT)
-        pygame.draw.rect(self.screen, color, rect)
+
+        # Convert coordinate from Cartesian system to column-row system
+        p1 = (self.x, self.y)
+        p2 = (self.x + self.vec1[0], self.y - self.vec1[1])
+        p3 = (self.x + self.vec2[0], self.y - self.vec2[1])
+        pygame.draw.polygon(self.screen, color, (p1, p2, p3))
 
     @staticmethod
     def compute_input_for_ai(ball_x, self_x, length):
@@ -72,6 +97,11 @@ class Camera:
             temp = (ball_x - self_x) / (length // 2)
             return int(temp * 256)
 
+    def swap_temp_with_vec1(self):
+        keep = self.vec1
+        self.vec1 = self.temp
+        self.temp = keep
+
     def update(self, ball):
         self.draw(NO_COLOR)
 
@@ -79,14 +109,21 @@ class Camera:
         value_x = self.compute_input_for_ai(ball.x, self.x, self.CAM_WIDTH)
         value_y = self.compute_input_for_ai(ball.y, self.y, self.CAM_HEIGHT)
 
-        dx, dy = fancy_ai(value_x, value_y)
+        dx, dy, rot = self.fancy_ai(value_x, value_y)
+
         self.x += dx
         self.y += dy
+        if rot:
+            multiply_into(self.vec1, self.ROT_CCW, self.temp)
+            self.swap_temp_with_vec1()
+            self.vec1[0] = self.vec1[0] // self.MAG_SQUARED
+            self.vec1[1] = self.vec1[1] // self.MAG_SQUARED
+            multiply_into(self.vec1, self.I, self.vec2)
 
         self.draw(self.COLOR)
 
-def fancy_ai(x, y):
-    return x // 4, y // 4
+    def fancy_ai(self, x, y):
+        return x // 4, y // 4, self.ROT_CCW
 
 def main():
     pygame.init()
@@ -104,6 +141,7 @@ def main():
         e = pygame.event.poll()
         if e.type == pygame.QUIT:
             pygame.quit()
+            break
 
         screen.fill(BG_COLOR)
         screen.blit(camera_layer, (0, 0))
