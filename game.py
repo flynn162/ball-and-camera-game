@@ -14,7 +14,8 @@ class Ball:
         self.screen = screen
 
     def draw(self, color):
-        pygame.draw.circle(self.screen, color, (self.x, self.y), self.RADIUS)
+        pygame.draw.circle(self.screen, color,
+                           (self.x, HEIGHT - self.y), self.RADIUS)
 
     def update(self):
         # Hide the ball!
@@ -25,9 +26,9 @@ class Ball:
         dx = 0
         dy = 0
         if keys[pygame.K_UP]:
-            dy = -10
-        if keys[pygame.K_DOWN]:
             dy = 10
+        if keys[pygame.K_DOWN]:
+            dy = -10
         if keys[pygame.K_LEFT]:
             dx = -10
         if keys[pygame.K_RIGHT]:
@@ -55,6 +56,18 @@ def square(z):
     multiply_into(z, z, result)
     return result
 
+def dot(a, b):
+    return a[0] * b[0] + a[1] * b[1]
+
+def mag_squared(v):
+    return v[0] * v[0] + v[1] * v[1]
+
+def project_onto(a, b, out):
+    d = dot(a, b)
+    ms = mag_squared(b)
+    out[0] = d * b[0] // ms
+    out[1] = d * b[1] // ms
+
 
 class Camera:
     CAM_WIDTH = 640
@@ -66,7 +79,7 @@ class Camera:
     ROT_CCW = square([16, 1])
     ROT_CW = square([16, -1])
     MAG_SQUARED = 16*16 + 1*1
-    VECTOR_LENGTH = 250
+    VECTOR_LENGTH = 300
 
     def __init__(self, screen, x, y):
         self.x = x
@@ -76,15 +89,15 @@ class Camera:
         self.screen = screen
 
         self.temp = [0, 0]
-        self.vec1 = [0, self.VECTOR_LENGTH]
+        self.vec1 = [self.VECTOR_LENGTH, 0]
         self.vec2 = multiply(self.vec1, self.I)
+        self.ai_input = self.Input(self)
 
     def draw(self, color):
-
         # Convert coordinate from Cartesian system to column-row system
-        p1 = (self.x, self.y)
-        p2 = (self.x + self.vec1[0], self.y - self.vec1[1])
-        p3 = (self.x + self.vec2[0], self.y - self.vec2[1])
+        p1 = (self.x, HEIGHT - self.y)
+        p2 = (self.x + self.vec1[0], HEIGHT - self.y - self.vec1[1])
+        p3 = (self.x + self.vec2[0], HEIGHT - self.y - self.vec2[1])
         pygame.draw.polygon(self.screen, color, (p1, p2, p3))
 
     @staticmethod
@@ -105,16 +118,12 @@ class Camera:
     def update(self, ball):
         self.draw(NO_COLOR)
 
-        # compute input value for the "fancy AI"
-        value_x = self.compute_input_for_ai(ball.x, self.x, self.CAM_WIDTH)
-        value_y = self.compute_input_for_ai(ball.y, self.y, self.CAM_HEIGHT)
-
-        dx, dy, rot = self.fancy_ai(value_x, value_y)
+        dx, dy, rot = self.fancy_ai(ball)
 
         self.x += dx
         self.y += dy
         if rot:
-            multiply_into(self.vec1, self.ROT_CCW, self.temp)
+            multiply_into(self.vec1, rot, self.temp)
             self.swap_temp_with_vec1()
             self.vec1[0] = self.vec1[0] // self.MAG_SQUARED
             self.vec1[1] = self.vec1[1] // self.MAG_SQUARED
@@ -122,8 +131,47 @@ class Camera:
 
         self.draw(self.COLOR)
 
-    def fancy_ai(self, x, y):
-        return x // 4, y // 4, self.ROT_CCW
+    class Input:
+        def __init__(self, camera):
+            self.parent = camera
+            self.d_max = self.parent.VECTOR_LENGTH * 1000 // 1414
+            self.temp = [0, 0]
+            self.how_far_from_object = 0
+            self.direction_vector = [0, 0]
+
+        def compute(self, ball):
+            vd = (ball.x - self.parent.x, ball.y - self.parent.y)
+
+            # draw a diamond (we will use the L1 norm here)
+            l1_distance = abs(vd[0]) + abs(vd[1])
+            if l1_distance >= self.d_max:
+                self.how_far_from_object = 256
+            else:
+                self.how_far_from_object = l1_distance * 256 // self.d_max
+
+            # direction
+            if l1_distance == 0:
+                self.direction_vector[0] = 0
+                self.direction_vector[1] = 0
+            else:
+                # 1. Let vec1 = a + bi, compute the complex number (c+di) st.
+                # (a+bi)(c+di) = |v|
+                # Sol: c + di = |v| (a - bi) / (a^2 + b^2) = (a - bi) / |v|
+                self.temp[0] = self.parent.vec1[0]
+                self.temp[1] = -self.parent.vec1[1]
+                # 2. rotate the vd vector
+                multiply_into(vd, self.temp, self.direction_vector)
+                self.direction_vector[0] //= self.parent.VECTOR_LENGTH
+                self.direction_vector[1] //= self.parent.VECTOR_LENGTH
+
+            # distance from wall (to be implemented)
+
+    def fancy_ai(self, ball):
+        value_x = self.compute_input_for_ai(ball.x, self.x, self.CAM_WIDTH)
+        value_y = self.compute_input_for_ai(ball.y, self.y, self.CAM_HEIGHT)
+        self.ai_input.compute(ball)
+
+        return 0, 0, self.ROT_CW
 
 def main():
     pygame.init()
