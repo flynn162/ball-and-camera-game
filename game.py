@@ -201,7 +201,10 @@ def main():
     ball = Ball(ball_layer, WIDTH // 2, HEIGHT // 2)
     camera = Camera(camera_layer, WIDTH // 2, HEIGHT // 2)
 
+    ticks = 0
     while True:
+        ticks = pygame.time.get_ticks()
+
         e = pygame.event.poll()
         if e.type == pygame.QUIT:
             pygame.quit()
@@ -216,7 +219,13 @@ def main():
         ball.update()
         camera.update(ball)
 
-        pygame.time.wait(30)
+        new_ticks = pygame.time.get_ticks()
+        wait_time = 33 - (new_ticks - ticks)
+        ticks = new_ticks
+        if wait_time > 1:
+            pygame.time.wait(wait_time)
+        else:
+            pygame.time.wait(1)
 
 if __name__ == '__main__':
     main()
