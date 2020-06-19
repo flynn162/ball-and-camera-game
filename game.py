@@ -1,4 +1,5 @@
 import pygame
+import fuzzy
 
 WIDTH, HEIGHT = 1920, 1080
 BG_COLOR = pygame.Color('black')
@@ -92,6 +93,7 @@ class Camera:
         self.vec1 = [self.VECTOR_LENGTH, 0]
         self.vec2 = multiply(self.vec1, self.I)
         self.ai_input = self.Input(self)
+        self.allocate_member_functions()
 
     def draw(self, color):
         # Convert coordinate from Cartesian system to column-row system
@@ -182,12 +184,92 @@ class Camera:
 
             # distance from wall (to be implemented)
 
+    def allocate_member_functions(self):
+        # NM, NS, Z, PS, PM
+        self.fdirx = fuzzy.FiveLevels(
+            (-1000, -500),
+            (-600, -10),
+            (-100, 100),
+            (10, 600),
+            (500, 1000)
+        )
+        self.fdiry = fuzzy.FiveLevels(
+            (-1000, -500),
+            (-600, -10),
+            (-100, 100),
+            (10, 600),
+            (500, 1000)
+        )
+        # Z, PS, PM
+        self.fdist = fuzzy.ThreeLevelsPositive(
+            (-10, 100),
+            (50, 500),
+            (300, 1000)
+        )
+        # NM, NS, Z, PS, PM
+        self.fdx = fuzzy.FiveLevels(
+            (-30, -15),
+            (-20, -5),
+            (-9, 9),
+            (5, 20),
+            (15, 30)
+        )
+        self.fdy = fuzzy.FiveLevels(
+            (-30, -15),
+            (-20, -5),
+            (-9, 9),
+            (5, 20),
+            (15, 30)
+        )
+        # NM, Z, PM
+        self.frot = fuzzy.ThreeLevels(
+            (-100, -50),
+            (-50, 50),
+            (50, 100)
+        )
+
     def fancy_ai(self, ball):
-        value_x = self.compute_input_for_ai(ball.x, self.x, self.CAM_WIDTH)
-        value_y = self.compute_input_for_ai(ball.y, self.y, self.CAM_HEIGHT)
         self.ai_input.compute(ball)
 
-        return 0, 0, self.ROT_CW
+        # compute dx
+        # if dist is Z or dist is PS:
+        dx_defuzzer = fuzzy.Defuzzer()
+        x = self.ai_input.how_far_from_object
+        closeness = max(self.fdist.Z(x), self.fdist.PS(x))
+        x, y = self.ai_input.direction_vector
+        #     if dir.x is zero and dir.y is zero:
+        #         set dx to NS
+        output = min(closeness, min(self.fdirx.Z(x), self.fdiry.Z(y)))
+        dx_defuzzer.feed(self.fdx.NS.x2, output)
+        #     if dir.x is PS:
+        #         set dx to NS
+        output = min(closeness, self.fdirx.PS(x))
+        dx_defuzzer.feed(self.fdx.NS.x2, output)
+
+        #     if dir.x is small negative:
+        #         set dx to small positive
+        #     if dir.y is small positive:
+        #         set dy to small negative  ##
+        #     if dir.y is small negative:
+        #         set dy to small positive
+
+        # if dir.x is medium positive and dir.y is medium positive and
+        # not close and not far:
+        #     set rot to zero
+        #     set dx to zero
+        #     set dy to zero
+
+        # if dir.x is medium negative:
+        #     set rot to medium positive
+        # if dir.y is medium negative:
+        #     set rot to medium negative
+
+        dx = dx_defuzzer.defuzz()
+        return (
+            min(30, max(-30, dx)),
+            0,
+            None
+        )
 
 def main():
     pygame.init()
