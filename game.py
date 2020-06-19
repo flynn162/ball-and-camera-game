@@ -103,12 +103,12 @@ class Camera:
     @staticmethod
     def compute_input_for_ai(ball_x, self_x, length):
         if ball_x <= self_x - length // 2:
-            return -256
+            return -1024
         elif ball_x >= self_x + length // 2:
-            return 256
+            return 1024
         else:
             temp = (ball_x - self_x) / (length // 2)
-            return int(temp * 256)
+            return int(temp * 1024)
 
     def swap_temp_with_vec1(self):
         keep = self.vec1
@@ -139,15 +139,21 @@ class Camera:
             self.how_far_from_object = 0
             self.direction_vector = [0, 0]
 
+        @staticmethod
+        def normalize(value, max_value):
+            if value >= max_value:
+                return 1024
+            elif value <= -max_value:  # min value is implied
+                return -1024
+            else:
+                return value * 1024 // max_value
+
         def compute(self, ball):
             vd = (ball.x - self.parent.x, ball.y - self.parent.y)
 
             # draw a diamond (we will use the L1 norm here)
             l1_distance = abs(vd[0]) + abs(vd[1])
-            if l1_distance >= self.d_max:
-                self.how_far_from_object = 256
-            else:
-                self.how_far_from_object = l1_distance * 256 // self.d_max
+            self.how_far_from_object = self.normalize(l1_distance, self.d_max)
 
             # direction
             if l1_distance == 0:
@@ -161,8 +167,18 @@ class Camera:
                 self.temp[1] = -self.parent.vec1[1]
                 # 2. rotate the vd vector
                 multiply_into(vd, self.temp, self.direction_vector)
+                # divide by |v|
                 self.direction_vector[0] //= self.parent.VECTOR_LENGTH
                 self.direction_vector[1] //= self.parent.VECTOR_LENGTH
+                # normalize
+                self.direction_vector[0] = self.normalize(
+                    self.direction_vector[0],
+                    self.parent.VECTOR_LENGTH * 6 // 5
+                )
+                self.direction_vector[1] = self.normalize(
+                    self.direction_vector[1],
+                    self.parent.VECTOR_LENGTH * 6 // 5
+                )
 
             # distance from wall (to be implemented)
 
