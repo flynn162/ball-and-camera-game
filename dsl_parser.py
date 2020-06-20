@@ -1,5 +1,6 @@
 import enum
 import string
+import collections
 
 class Tokenizer:
     class Buffer:
@@ -139,3 +140,78 @@ def main():
     fd = open('rule.scm', 'rb')
     tokenizer.tokenize(fd)
     print('\n====')
+
+
+class Cons:
+    __slots__ = ('car', 'cdr')
+    def __init__(self, car, cdr):
+        self.car = car
+        self.cdr = cdr
+
+    def print_repr(self):
+        self._print_repr(self)
+        print('')
+
+    def _print_repr(self, curr):
+        print('(', end='')
+        while curr is not None:
+            if isinstance(curr.car, str):
+                print(curr.car, end=' ')
+            else:
+                self._print_repr(curr.car)
+            curr = curr.cdr
+        print(')', end='')
+
+
+class SchemeParser:
+    class Accumulator:
+        def __init__(self, element=None):
+            if element is None:
+                self.head = None
+                self.tail = None
+            else:
+                self.head = Cons(element, None)
+                self.tail = self.head
+
+        def append(self, element):
+            new_node = Cons(element, None)
+            if self.head is None:
+                self.head = new_node
+                self.tail = new_node
+            else:
+                self.tail.cdr = new_node
+                self.tail = self.tail.cdr
+
+        def to_list(self):
+            return self.head
+
+    def __init__(self):
+        def on_symbol(symbol):
+            self.on_symbol(symbol)
+
+        def on_list_open():
+            self.on_list_open()
+
+        def on_list_close():
+            self.on_list_close()
+
+        self.tokenizer = Tokenizer(on_symbol, on_list_open, on_list_close)
+        self.root = self.Accumulator('begin')
+        self.stack = collections.deque()
+        self.stack.appendleft(self.root)
+
+    def on_symbol(self, symbol):
+        self.stack[0].append(symbol)
+
+    def on_list_open(self):
+        self.stack.appendleft(self.Accumulator())
+
+    def on_list_close(self):
+        linked_list = self.stack.popleft().to_list()
+        self.stack[0].append(linked_list)
+
+    def parse(self, binary_fd):
+        self.tokenizer.tokenize(binary_fd)
+        if len(self.stack) != 1:
+            raise ValueError('Unbalanced parenthesis')
+        return self.root.to_list()
