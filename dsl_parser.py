@@ -155,36 +155,42 @@ class Cons:
     def _print_repr(self, curr):
         print('(', end='')
         while curr is not None:
-            if isinstance(curr.car, str):
-                print(curr.car, end=' ')
-            else:
+            if isinstance(curr.car, Cons):
                 self._print_repr(curr.car)
+            else:
+                print(curr.car, end=' ')
             curr = curr.cdr
         print(')', end='')
 
 
+class Accumulator:
+    def __init__(self, element=None):
+        if element is None:
+            self.head = None
+            self.tail = None
+        else:
+            self.head = Cons(element, None)
+            self.tail = self.head
+
+    def append(self, element):
+        new_node = Cons(element, None)
+        if self.head is None:
+            self.head = new_node
+            self.tail = new_node
+        else:
+            self.tail.cdr = new_node
+            self.tail = self.tail.cdr
+
+    def extend(self, linked_list):
+        while linked_list is not None:
+            self.append(linked_list.car)
+            linked_list = linked_list.cdr
+
+    def to_list(self):
+        return self.head
+
+
 class SchemeParser:
-    class Accumulator:
-        def __init__(self, element=None):
-            if element is None:
-                self.head = None
-                self.tail = None
-            else:
-                self.head = Cons(element, None)
-                self.tail = self.head
-
-        def append(self, element):
-            new_node = Cons(element, None)
-            if self.head is None:
-                self.head = new_node
-                self.tail = new_node
-            else:
-                self.tail.cdr = new_node
-                self.tail = self.tail.cdr
-
-        def to_list(self):
-            return self.head
-
     def __init__(self):
         def on_symbol(symbol):
             self.on_symbol(symbol)
@@ -196,7 +202,7 @@ class SchemeParser:
             self.on_list_close()
 
         self.tokenizer = Tokenizer(on_symbol, on_list_open, on_list_close)
-        self.root = self.Accumulator('begin')
+        self.root = Accumulator('begin')
         self.stack = collections.deque()
         self.stack.appendleft(self.root)
 
@@ -204,7 +210,7 @@ class SchemeParser:
         self.stack[0].append(symbol)
 
     def on_list_open(self):
-        self.stack.appendleft(self.Accumulator())
+        self.stack.appendleft(Accumulator())
 
     def on_list_close(self):
         linked_list = self.stack.popleft().to_list()
