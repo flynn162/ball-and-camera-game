@@ -4,6 +4,8 @@ def ASSERT_EQ(str1, str2):
     if str1 != str2:
         raise RuntimeError('should be %s but got %s' % (str2, str1))
 
+UNCHANGED = Cons('<UNCHANGED>', None)
+
 class Transform:
     class Placeholder:
         def __init__(self, name, ellipsis=False):
@@ -124,12 +126,40 @@ class Transform:
 
     def try_transform(self, sexp):
         if not self._match(self.src, sexp):
-            return None
+            return UNCHANGED
         if self.dst is None:
-            return '<DELETE>'
+            return None
         else:
             return self._generate(self.dst)
 
+    def recursively_transform(self, sexp):
+        acc = Accumulator()
+        changed = False
+
+        while sexp is not None:
+            if isinstance(sexp.car, Cons):
+                result = self.recursively_transform(sexp.car)
+                if result is UNCHANGED:
+                    acc.append(sexp.car)
+                else:
+                    changed = True
+                    acc.extend(result)
+            else:
+                acc.append(sexp.car)
+
+            sexp = sexp.cdr
+
+        # To return: UNCHANGED or a (possibly empty) list of S-expressions
+        sexp = acc.to_list()
+        transformed = self.try_transform(sexp)
+        if transformed is not UNCHANGED:
+            return transformed
+        elif changed:
+            # `transformed` is UNCHANGED, but the sexp has changed in deeper
+            # levels
+            return sexp
+        else:
+            return UNCHANGED
 
 def main():
     import dsl_parser
