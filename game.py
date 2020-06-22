@@ -128,8 +128,12 @@ class Camera:
 
         dx, dy, rot = self.fancy_ai(ball)
 
-        self.x += dx
-        self.y += dy
+        # compute (dx * v1/|v1|) + (dy * v2/|v2|)
+        real_dx = (dx*self.vec1[0] + dy*self.vec2[0]) // self.VECTOR_LENGTH
+        real_dy = (dx*self.vec1[1] + dy*self.vec2[1]) // self.VECTOR_LENGTH
+        self.x += real_dx
+        self.y += real_dy
+
         if rot:
             multiply_into(self.vec1, rot, self.temp)
             self.swap_temp_with_vec1()
@@ -243,10 +247,18 @@ class Camera:
         self.ai_input.compute(ball)
         self.ai_input.put_into(self.fuzzy_machine)
         self.fuzzy_machine.run()
+
+        rot_number = self.fuzzy_machine.get_output('rot')
+        rot = None
+        if rot_number <= -45:
+            rot = self.ROT_CW
+        elif rot_number >= 45:
+            rot = self.ROT_CCW
+
         return (
-            min(30, max(-30, self.fuzzy_machine.get_output('dx'))),
-            min(30, max(-30, self.fuzzy_machine.get_output('dy'))),
-            None
+            min(50, max(-50, self.fuzzy_machine.get_output('dx'))),
+            min(50, max(-50, self.fuzzy_machine.get_output('dy'))),
+            rot
         )
 
 
