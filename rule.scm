@@ -1,11 +1,19 @@
 ;; if the camera is too close to the ball
-(if (or (is dist Z) (is dist PS))
+(if (is dist Z)
     (begin
       (if (and (is dir-x Z) (is dir-y Z)) (set! dx NS))
-      (if (is dir-x PS) (set! dx NS))
-      (if (is dir-x NS) (set! dx PS))
-      (if (is dir-y PS) (set! dy NS))
-      (if (is dir-y NS) (set! dy PS))
+      (if (is dir-x PS)
+          (begin (set! dx NS)
+                 (set! rot NM)))
+      (if (is dir-x NS)
+          (begin (set! dx PS)
+                 (set! rot PM)))
+      (if (is dir-y PS)
+          (begin (set! dy NS)
+                 (set! rot NM)))
+      (if (is dir-y NS)
+          (begin (set! dy PS)
+                 (set! rot PM)))
       ))
 
 ;; condition to stop moving
@@ -16,6 +24,15 @@
       (set! dy Z)
       ))
 
+;; if the camera is too far from the ball, come closer
+(if (is dist PM)
+    (begin
+      (if (is dir-x PM) (set! dx PM))
+      (if (is dir-x PS) (set! dx PS))
+      (if (is dir-y PM) (set! dy PM))
+      (if (is dir-y PS) (set! dy PS))
+      ))
+
 ;; rotation
-(if (is dir-x NM) (set! rot PM))
-(if (is dir-y NM) (set! rot NM))
+(if (or (is dir-x NS) (is dir-x NM) (is dir-x Z)) (set! rot PM))
+(if (or (is dir-y NS) (is dir-y NM) (is dir-y Z)) (set! rot NM))

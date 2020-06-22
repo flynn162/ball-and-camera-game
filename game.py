@@ -202,24 +202,24 @@ class Camera:
     def allocate_member_functions(self):
         # NM, NS, Z, PS, PM
         self.fdirx = fuzzy.FiveLevels(
-            (-1000, -500),
+            (-1500, -500),
             (-600, -10),
             (-100, 100),
             (10, 600),
-            (500, 1000)
+            (500, 1500)
         )
         self.fdiry = fuzzy.FiveLevels(
-            (-1000, -500),
+            (-1500, -500),
             (-600, -10),
             (-100, 100),
             (10, 600),
-            (500, 1000)
+            (500, 1500)
         )
         # Z, PS, PM
         self.fdist = fuzzy.ThreeLevelsPositive(
-            (-10, 100),
-            (50, 500),
-            (300, 1000)
+            (-10, 300),
+            (250, 700),
+            (600, 1500)
         )
         # NM, NS, Z, PS, PM
         self.fdx = fuzzy.FiveLevels(
