@@ -124,7 +124,8 @@ class Transform:
 
         return acc.to_list()
 
-    def try_transform(self, sexp):
+    def _try_transform(self, sexp):
+        """Returns UNCHANGED or a list of S-expressions"""
         if not self._match(self.src, sexp):
             return UNCHANGED
         if self.dst is None:
@@ -132,8 +133,10 @@ class Transform:
         else:
             return self._generate(self.dst)
 
-    def recursively_transform(self, sexp):
-        acc = Accumulator()
+    def transform_sexp_non_root(self, sexp, acc):
+        """Transform S-expression at non-root levels.
+        Return an S-expression
+        """
         changed = False
 
         while sexp is not None:
@@ -149,26 +152,21 @@ class Transform:
 
             sexp = sexp.cdr
 
+        return changed
+
+    def recursively_transform(self, sexp):
+        """Returns UNCHANGED or a list of S-expressions"""
+        acc = Accumulator()
+        changed = self.transform_sexp_non_root(sexp, acc)
+
         # To return: UNCHANGED or a (possibly empty) list of S-expressions
         sexp = acc.to_list()
-        transformed = self.try_transform(sexp)
+        transformed = self._try_transform(sexp)
         if transformed is not UNCHANGED:
             return transformed
         elif changed:
             # `transformed` is UNCHANGED, but the sexp has changed in deeper
             # levels
-            return sexp
+            return Cons(sexp, None)
         else:
             return UNCHANGED
-
-def main():
-    import dsl_parser
-    parser = dsl_parser.SchemeParser()
-    sexp = parser.parse(open('transform.scm', 'rb'))
-    transform = Transform(sexp.cdr.car)
-    return transform
-
-def main2():
-    import dsl_parser
-    parser = dsl_parser.SchemeParser()
-    return parser.parse(open('rule.scm', 'rb'))

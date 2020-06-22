@@ -162,6 +162,13 @@ class Cons:
             curr = curr.cdr
         print(')', end='')
 
+    def __len__(self):
+        length = 0
+        curr = self
+        while curr is not None:
+            length += 1
+            curr = curr.cdr
+        return length
 
 class Accumulator:
     def __init__(self, element=None):
@@ -202,7 +209,7 @@ class SchemeParser:
             self.on_list_close()
 
         self.tokenizer = Tokenizer(on_symbol, on_list_open, on_list_close)
-        self.root = Accumulator('begin')
+        self.root = Accumulator()
         self.stack = collections.deque()
         self.stack.appendleft(self.root)
 
