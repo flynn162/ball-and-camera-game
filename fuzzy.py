@@ -60,3 +60,6 @@ class Defuzzer:
 
     def defuzz(self):
         return self.numerator // max(1, self.denominator)
+
+    def reset(self):
+        self.__init__()

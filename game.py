@@ -1,5 +1,6 @@
 import pygame
 import fuzzy
+import vm
 
 WIDTH, HEIGHT = 1920, 1080
 BG_COLOR = pygame.Color('black')
@@ -94,6 +95,11 @@ class Camera:
         self.vec2 = multiply(self.vec1, self.I)
         self.ai_input = self.Input(self)
         self.allocate_member_functions()
+        self.fuzzy_machine = vm.VM(
+            {'dir-x': self.fdirx, 'dir-y': self.fdiry, 'dist': self.fdist},
+            {'dx': self.fdx, 'dy': self.fdy, 'rot': self.frot},
+            'rule.scm'
+        )
 
     def draw(self, color):
         # Convert coordinate from Cartesian system to column-row system
@@ -184,6 +190,11 @@ class Camera:
 
             # distance from wall (to be implemented)
 
+        def put_into(self, virtual_machine):
+            virtual_machine.input('dir-x', self.direction_vector[0])
+            virtual_machine.input('dir-y', self.direction_vector[1])
+            virtual_machine.input('dist', self.how_far_from_object)
+
     def allocate_member_functions(self):
         # NM, NS, Z, PS, PM
         self.fdirx = fuzzy.FiveLevels(
@@ -230,46 +241,14 @@ class Camera:
 
     def fancy_ai(self, ball):
         self.ai_input.compute(ball)
-
-        # compute dx
-        # if dist is Z or dist is PS:
-        dx_defuzzer = fuzzy.Defuzzer()
-        x = self.ai_input.how_far_from_object
-        closeness = max(self.fdist.Z(x), self.fdist.PS(x))
-        x, y = self.ai_input.direction_vector
-        #     if dir.x is zero and dir.y is zero:
-        #         set dx to NS
-        output = min(closeness, min(self.fdirx.Z(x), self.fdiry.Z(y)))
-        dx_defuzzer.feed(self.fdx.NS.x2, output)
-        #     if dir.x is PS:
-        #         set dx to NS
-        output = min(closeness, self.fdirx.PS(x))
-        dx_defuzzer.feed(self.fdx.NS.x2, output)
-
-        #     if dir.x is small negative:
-        #         set dx to small positive
-        #     if dir.y is small positive:
-        #         set dy to small negative  ##
-        #     if dir.y is small negative:
-        #         set dy to small positive
-
-        # if dir.x is medium positive and dir.y is medium positive and
-        # not close and not far:
-        #     set rot to zero
-        #     set dx to zero
-        #     set dy to zero
-
-        # if dir.x is medium negative:
-        #     set rot to medium positive
-        # if dir.y is medium negative:
-        #     set rot to medium negative
-
-        dx = dx_defuzzer.defuzz()
+        self.ai_input.put_into(self.fuzzy_machine)
+        self.fuzzy_machine.run()
         return (
-            min(30, max(-30, dx)),
-            0,
+            min(30, max(-30, self.fuzzy_machine.get_output('dx'))),
+            min(30, max(-30, self.fuzzy_machine.get_output('dy'))),
             None
         )
+
 
 def main():
     pygame.init()
