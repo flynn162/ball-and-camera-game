@@ -1,7 +1,9 @@
 ;; if the camera is too close to the ball
 (if (is dist Z)
     (begin
-      (if (and (is dir-x Z) (is dir-y Z)) (set! dx NS))
+      (if (and (is dir-x Z) (is dir-y Z))
+          (begin (set! dx NS)
+                 (set! rot NM)))
       (if (is dir-x PS)
           (begin (set! dx NS)
                  (set! rot NM)))

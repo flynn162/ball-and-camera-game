@@ -82,17 +82,54 @@ class Camera:
     ROT_CW = square([16, -1])
     MAG_SQUARED = 16*16 + 1*1
     VECTOR_LENGTH = 300
+    ACCELERATION = 3
+    DECELERATION = -6
+
+    class Rotation:
+        def __init__(self, dx):
+            self.reset(dx)
+
+        def reset(self, dx):
+            self.ccw = square([dx, 1])
+            self.cw = square([dx, -1])
+            self.mag_squared = dx*dx + 1
+
+        def _compute(self, vector_length, vec1, rot, output):
+            multiply_into(vec1, rot, output)
+            ## use symmetric rounding
+            x = int(output[0] / self.mag_squared)
+            y = int(output[1] / self.mag_squared)
+            ## fix the length of the vector
+            if x*x + y*y < vector_length ** 2:
+                if output[0] != 0:
+                    x += output[0] // abs(output[0])
+                if output[1] != 0:
+                    y += output[1] // abs(output[1])
+            output[0] = x
+            output[1] = y
+
+        def rotate_ccw(self, vector_length, vec1, output):
+            self._compute(vector_length, vec1, self.ccw, output)
+
+        def rotate_cw(self, vector_length, vec1, output):
+            self._compute(vector_length, vec1, self.cw, output)
 
     def __init__(self, screen, x, y):
         self.x = x
         self.y = y
-        self.dx = 0
-        self.dy = 0
+        # targeted velocity
+        self.vx = 0
+        self.vy = 0
+        # real velocity
+        self.curr_vx = 0
+        self.curr_vy = 0
         self.screen = screen
 
         self.temp = [0, 0]
         self.vec1 = [self.VECTOR_LENGTH, 0]
         self.vec2 = multiply(self.vec1, self.I)
+        self.rot = self.Rotation(16)
+
         self.ai_input = self.Input(self)
         self.allocate_member_functions()
         self.fuzzy_machine = vm.VM(
@@ -129,16 +166,38 @@ class Camera:
         dx, dy, rot = self.fancy_ai(ball)
 
         # compute (dx * v1/|v1|) + (dy * v2/|v2|)
-        real_dx = (dx*self.vec1[0] + dy*self.vec2[0]) // self.VECTOR_LENGTH
-        real_dy = (dx*self.vec1[1] + dy*self.vec2[1]) // self.VECTOR_LENGTH
-        self.x += real_dx
-        self.y += real_dy
+        self.vx = (dx*self.vec1[0] + dy*self.vec2[0]) // self.VECTOR_LENGTH
+        self.vy = (dx*self.vec1[1] + dy*self.vec2[1]) // self.VECTOR_LENGTH
 
-        if rot:
-            multiply_into(self.vec1, rot, self.temp)
+        dvx = 0
+        dvy = 0
+
+        if self.curr_vx >= self.vx:
+            dvx = max(self.DECELERATION, self.vx - self.curr_vx)
+        else:
+            dvx = min(self.ACCELERATION, self.vx - self.curr_vx)
+
+        if self.curr_vy >= self.vy:
+            dvy = max(self.DECELERATION, self.vy - self.curr_vy)
+        else:
+            dvy = min(self.ACCELERATION, self.vy - self.curr_vy)
+
+        self.curr_vx += dvx
+        self.curr_vy += dvy
+
+        self.curr_vx = min(50, max(-50, self.curr_vx))
+        self.curr_vy = min(50, max(-50, self.curr_vy))
+
+        self.x += self.curr_vx
+        self.y += self.curr_vy
+
+        if rot != 0:
+            self.rot.reset(100 - min(100, abs(rot)))
+            if rot < 0:
+                self.rot.rotate_cw(self.VECTOR_LENGTH, self.vec1, self.temp)
+            else:
+                self.rot.rotate_ccw(self.VECTOR_LENGTH, self.vec1, self.temp)
             self.swap_temp_with_vec1()
-            self.vec1[0] = self.vec1[0] // self.MAG_SQUARED
-            self.vec1[1] = self.vec1[1] // self.MAG_SQUARED
             multiply_into(self.vec1, self.I, self.vec2)
 
         self.draw(self.COLOR)
@@ -248,17 +307,10 @@ class Camera:
         self.ai_input.put_into(self.fuzzy_machine)
         self.fuzzy_machine.run()
 
-        rot_number = self.fuzzy_machine.get_output('rot')
-        rot = None
-        if rot_number <= -45:
-            rot = self.ROT_CW
-        elif rot_number >= 45:
-            rot = self.ROT_CCW
-
         return (
             min(50, max(-50, self.fuzzy_machine.get_output('dx'))),
             min(50, max(-50, self.fuzzy_machine.get_output('dy'))),
-            rot
+            self.fuzzy_machine.get_output('rot')
         )
 
 
