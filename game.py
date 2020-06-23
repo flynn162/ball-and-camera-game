@@ -58,6 +58,9 @@ def square(z):
     multiply_into(z, z, result)
     return result
 
+def square_into(z, output):
+    multiply_into(z, z, output)
+
 def dot(a, b):
     return a[0] * b[0] + a[1] * b[1]
 
@@ -87,11 +90,17 @@ class Camera:
 
     class Rotation:
         def __init__(self, dx):
-            self.reset(dx)
-
-        def reset(self, dx):
             self.ccw = square([dx, 1])
             self.cw = square([dx, -1])
+            self.mag_squared = dx*dx + 1
+            self.temp = [0, 0]
+
+        def reset(self, dx):
+            self.temp[0] = dx
+            self.temp[1] = 1
+            square_into(self.temp, self.ccw)
+            self.temp[1] = -1
+            square_into(self.temp, self.cw)
             self.mag_squared = dx*dx + 1
 
         def _compute(self, vector_length, vec1, rot, output):
