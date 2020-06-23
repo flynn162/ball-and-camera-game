@@ -6,6 +6,8 @@ The camera's field of view is drawn as a triangle. As you move the ball around, 
 
 There is more to come.
 
+![How exciting LOL](preview.gif)
+
 # Dependencies
 
 - Python 3
